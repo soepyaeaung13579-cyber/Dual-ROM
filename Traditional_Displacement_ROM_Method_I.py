@@ -653,13 +653,6 @@ class OfflinePreparationStudio(QMainWindow):
         self.disp_modeEditField.editingFinished.connect(self.update_rom_mode_selection)
         input_layout.addWidget(self.disp_modeEditField)
         
-        self.SnapshotMethodDropDown = QComboBox(); self.SnapshotMethodDropDown.addItems(["USS", "BCSS"])
-        input_layout.addWidget(QLabel("<b>Snapshot Method:</b>")); input_layout.addWidget(self.SnapshotMethodDropDown)
-        
-        self.BCSSBoundaryDropDown = QComboBox(); self.BCSSBoundaryDropDown.addItems(["Cantilever", "Fixed-Fixed"])
-        input_layout.addWidget(QLabel("<b>BCSS Boundary:</b>")); input_layout.addWidget(self.BCSSBoundaryDropDown)
-        self.SnapshotMethodDropDown.currentIndexChanged.connect(self._update_snapshot_controls)
-        self._update_snapshot_controls()
         input_layout.addStretch()
         
         # --- MEMORY FIX: Clear ROM data before retraining ---
@@ -2152,38 +2145,10 @@ class OfflinePreparationStudio(QMainWindow):
                 pass
             return
 
-    def _update_snapshot_controls(self):
-        is_bcss = self.SnapshotMethodDropDown.currentText().upper() == 'BCSS'
-        self.BCSSBoundaryDropDown.setEnabled(is_bcss)
-
     def _build_snapshot_positions(self, num_snapshots):
-        method = self.SnapshotMethodDropDown.currentText().upper() if hasattr(self, 'SnapshotMethodDropDown') else 'USS'
-        boundary_class = self.BCSSBoundaryDropDown.currentText().lower() if hasattr(self, 'BCSSBoundaryDropDown') else 'cantilever'
-        
-        self.BC = boundary_class
         Lx = self.geometry['Lx']
         
-        if method == 'BCSS':
-            if 'fixed' in boundary_class:
-                # Fixed-fixed beams have stress concentrations at BOTH supports (x=0 and x=Lx).
-                # Sample both boundaries densely (logarithmically up to 15% of span) plus the interior span.
-                edge_count = max(3, num_snapshots // 4)
-                bulk_count = max(1, num_snapshots - 2 * edge_count)
-                
-                left_edge = np.geomspace(0.0005, 0.15, edge_count)
-                right_edge = 1.0 - np.geomspace(0.0005, 0.15, edge_count)[::-1]
-                bulk = np.linspace(0.18, 0.82, bulk_count)
-                
-                x_norm = np.sort(np.unique(np.concatenate((left_edge, bulk, right_edge))))
-            else:
-                # Cantilever/Single boundary: logarithmic clustering over 15% of span near fixed support.
-                edge_count = max(6, num_snapshots // 2)
-                bulk_count = max(1, num_snapshots - edge_count)
-                left_edge = np.geomspace(0.0005, 0.15, edge_count)
-                bulk = np.linspace(0.18, 0.99, bulk_count)
-                x_norm = np.sort(np.unique(np.concatenate((left_edge, bulk))))
-        else:
-            x_norm = np.linspace(0.0, 1.0, num_snapshots)
+        x_norm = np.linspace(0.0, 1.0, num_snapshots)
 
         if len(x_norm) > num_snapshots:
             idx = np.round(np.linspace(0, len(x_norm) - 1, num_snapshots)).astype(int)

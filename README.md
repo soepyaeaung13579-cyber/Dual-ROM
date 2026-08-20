@@ -1,4 +1,4 @@
-# Dual-ROM Framework for 3D Structural Bending Analysis
+# Dual-Field Reduced-Order Modeling for Static Loading Agnostic Online Simulation with Zero Boundary Stress Reconstruction Error
 
 This repository contains the source code for the numerical case studies and the GUI-based framework used to evaluate Reduced-Order Modeling (ROM) strategies for 3D structural beam bending.
 
@@ -28,8 +28,8 @@ Both applications are built with PyQt6 for the interactive user interface and Py
 
 ```bash
 # Clone the repository
-git clone https://github.com/soepyaeaung13579-cyber/Dual-ROM-Framework.git
-cd Dual-ROM-Framework
+git clone https://github.com/soepyaeaung13579-cyber/Dual-ROM.git
+cd Dual-ROM
 
 # Install dependencies (We recommend using a virtual environment)
 pip install -r requirements.txt
@@ -58,11 +58,11 @@ python "Traditional_Displacement_ROM_Method_I.py"
 If you use this code in your research, please cite:
 
 ```bibtex
-@software{dual_rom_framework,
-  title   = {Dual-ROM Framework for 3D Structural Bending Analysis},
+@software{dual_rom,
+  title   = {Dual-Field Reduced-Order Modeling for Static Loading Agnostic Online Simulation with Zero Boundary Stress Reconstruction Error},
   author  = {CSE Lab},
   year    = {2026},
-  url     = {https://github.com/soepyaeaung13579-cyber/Dual-ROM-Framework}
+  url     = {https://github.com/soepyaeaung13579-cyber/Dual-ROM}
 }
 ```
 

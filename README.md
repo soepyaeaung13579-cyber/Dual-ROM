@@ -28,7 +28,7 @@ Both applications are built with PyQt6 for the interactive user interface and Py
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/Dual-ROM-Framework.git
+git clone https://github.com/soepyaeaung13579-cyber/Dual-ROM-Framework.git
 cd Dual-ROM-Framework
 
 # Install dependencies (We recommend using a virtual environment)
@@ -62,7 +62,7 @@ If you use this code in your research, please cite:
   title   = {Dual-ROM Framework for 3D Structural Bending Analysis},
   author  = {CSE Lab},
   year    = {2026},
-  url     = {https://github.com/<your-username>/Dual-ROM-Framework}
+  url     = {https://github.com/soepyaeaung13579-cyber/Dual-ROM-Framework}
 }
 ```
 

@@ -5,12 +5,12 @@ This repository contains the source code for the numerical case studies and the 
 The repository includes two separate interactive Python applications:
 
 1. **Dual ROM Framework (Method II & Method III)**:
-   - File: `Dual ROM (Selected Snapshot Method(Mehtod II +Method III) .py`
+   - File: `Dual_ROM_Method_II_III.py`
    - Features the novel Dual ROM approach which pre-computes per-mode nodal stress vectors during offline training. This allows online stress recovery to be reduced to a single matrix-vector product, drastically increasing stress recovery speed.
    - Implements advanced snapshot strategies like Boundary-Clustered Snapshot Sampling (BCSS).
 
 2. **Traditional Displacement ROM (Method I)**:
-   - File: `Traditional Displacement  ROM.py`
+   - File: `Traditional_Displacement_ROM_Method_I.py`
    - The conventional baseline ROM approach. It projects only the displacement field and recomputes stresses online via the full strain-displacement operator followed by Gauss-to-node extrapolation.
    - Implements Uniform Snapshot Sampling (USS).
 
@@ -35,18 +35,18 @@ cd Dual-ROM-Framework
 pip install -r requirements.txt
 
 # Run the Dual ROM application
-python "Dual ROM (Selected Snapshot Method(Mehtod II +Method III) .py"
+python "Dual_ROM_Method_II_III.py"
 
 # Or run the Traditional ROM baseline
-python "Traditional Displacement  ROM.py"
+python "Traditional_Displacement_ROM_Method_I.py"
 ```
 
 ## Repository Structure
 
 ```
 .
-├── Dual ROM (Selected Snapshot Method(Mehtod II +Method III) .py
-├── Traditional Displacement  ROM.py
+├── Dual_ROM_Method_II_III.py
+├── Traditional_Displacement_ROM_Method_I.py
 ├── requirements.txt             # Python dependencies
 ├── LICENSE                      # MIT License
 ├── .gitignore

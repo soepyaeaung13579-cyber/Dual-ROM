@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software or methodology in your research, please cite it using the metadata below."
+type: software
+title: "Dual-Field Reduced-Order Modeling for Load-Agnostic Static Simulation and Boundary Stress Reconstruction"
+version: 1.1.0
+date-released: 2026-11-17
+license: MIT
+repository-code: "https://github.com/soepyaeaung13579-cyber/Dual-ROM"
+url: "https://github.com/soepyaeaung13579-cyber/Dual-ROM"
+authors:
+  - family-names: "Aung"
+    given-names: "Soe Pyae"
+  - name: "CSE Lab"
+keywords:
+  - Reduced-Order Modeling
+  - Proper Orthogonal Decomposition
+  - Finite Element Analysis
+  - 3D Continuum Elasticity
+  - Boundary Stress Reconstruction
+  - Digital Twin
+preferred-citation:
+  type: article
+  title: "Dual-Field Reduced-Order Modeling for Load-Agnostic Static Simulation and Boundary Stress Reconstruction"
+  authors:
+    - family-names: "Aung"
+      given-names: "Soe Pyae"
+    - name: "CSE Lab"
+  journal: "Advanced Modeling and Simulation in Engineering Sciences"
+  year: 2026

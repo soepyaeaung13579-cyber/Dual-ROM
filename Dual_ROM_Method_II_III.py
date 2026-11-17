@@ -277,7 +277,8 @@ class OfflinePreparationStudio(QMainWindow):
             "3. Solve Model",
             "4. Post-Processing",
             "5. ROM Training",
-            "6. ROM Validation & Save"
+            "6. ROM Validation & Save",
+            "7. Out-of-Span Generalization"
         ]
         
         self.step_buttons = []
@@ -354,6 +355,7 @@ class OfflinePreparationStudio(QMainWindow):
         self.stacked_widget.addWidget(self.create_panel4_post_processing())
         self.stacked_widget.addWidget(self.create_panel5_rom_training())
         self.stacked_widget.addWidget(self.create_panel6_rom_validation())
+        self.stacked_widget.addWidget(self.create_panel7_generalization())
 
     @staticmethod
     def m_to_mm(value_m):
@@ -450,6 +452,15 @@ class OfflinePreparationStudio(QMainWindow):
         self.UIAxes9.clear(); self.UIAxes9.add_axes(); self.UIAxes9.update()
         self.UIAxes10.clear(); self.UIAxes10.add_axes(); self.UIAxes10.update()
         self.UIAxes11.clear(); self.UIAxes11.add_axes(); self.UIAxes11.update()
+
+    def action_clear_panel7(self):
+        if hasattr(self, 'fig_gen'):
+            self.fig_gen.clf()
+            self.canvas_gen.draw_idle()
+        if hasattr(self, 'GenTable'):
+            self.GenTable.setRowCount(0)
+        if hasattr(self, 'GenSummaryTextArea'):
+            self.GenSummaryTextArea.clear()
 
     # =========================================================================
     # UI PANELS 1-7
@@ -758,6 +769,80 @@ class OfflinePreparationStudio(QMainWindow):
         right.addWidget(nmae_widget)
 
         layout.addWidget(left, 1); layout.addWidget(right, 3)
+        return panel
+
+    def create_panel7_generalization(self):
+        """Tab 7: Multi-Load Out-of-Span Generalization & Linear Independence Verification (Reviewer 2 Comment 2)."""
+        panel = QWidget(); main_layout = QVBoxLayout(panel)
+
+        # Top control bar
+        ctrl_bar = QHBoxLayout()
+        ctrl_bar.addWidget(QLabel("<b>Unseen Test Loads (N):</b>"))
+        self.NumUnseenLoadsEditField = QLineEdit("50"); self.NumUnseenLoadsEditField.setFixedWidth(55)
+        ctrl_bar.addWidget(self.NumUnseenLoadsEditField)
+
+        ctrl_bar.addWidget(QLabel("<b>Sampling Mode:</b>"))
+        self.GenSamplingModeDropDown = QComboBox()
+        self.GenSamplingModeDropDown.addItems([
+            "Strictly Out-of-Span Only (rank + 1)",
+            "Uniform Span Sweep (All Positions)"
+        ])
+        ctrl_bar.addWidget(self.GenSamplingModeDropDown)
+
+        ctrl_bar.addWidget(QLabel("<b>Test Load (N):</b>"))
+        self.GenLoadValueEditField = QLineEdit("-10"); self.GenLoadValueEditField.setFixedWidth(60)
+        ctrl_bar.addWidget(self.GenLoadValueEditField)
+
+        ctrl_bar.addWidget(QLabel("<b>Stress Component:</b>"))
+        self.GenStressTypeDropDown = QComboBox()
+        self.GenStressTypeDropDown.addItems(['Sigma_xx', 'Sigma_yy', 'Sigma_zz', 'Tau_xy', 'Tau_yz', 'Tau_zx'])
+        ctrl_bar.addWidget(self.GenStressTypeDropDown)
+
+        btn_run_gen = QPushButton("🚀 Run Out-of-Span Generalization Test")
+        btn_run_gen.setStyleSheet("font-weight: bold; padding: 8px 16px; background-color: #2b5797; color: white; border-radius: 4px;")
+        btn_run_gen.clicked.connect(self.RunGeneralizationStudyButtonPushed)
+        ctrl_bar.addWidget(btn_run_gen)
+
+        btn_export_csv = QPushButton("📋 Export CSV Table")
+        btn_export_csv.setStyleSheet("font-weight: bold; padding: 8px 14px; background-color: #27ae60; color: white; border-radius: 4px;")
+        btn_export_csv.clicked.connect(self.ExportGeneralizationCSVButtonPushed)
+        ctrl_bar.addWidget(btn_export_csv)
+
+        btn_clear_gen = QPushButton("🗑️ Clear")
+        btn_clear_gen.setStyleSheet("font-weight: bold; padding: 8px 12px; background-color: #7f8c8d; color: white; border-radius: 4px;")
+        btn_clear_gen.clicked.connect(self.action_clear_panel7)
+        ctrl_bar.addWidget(btn_clear_gen)
+        ctrl_bar.addStretch()
+        main_layout.addLayout(ctrl_bar)
+
+        # Bottom splitter: Left (Training Coords + Summary + Table), Right (2 Matplotlib Plots)
+        body_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        left_widget = QWidget(); left_vbox = QVBoxLayout(left_widget)
+        left_vbox.addWidget(QLabel("<b>1. Training Load Coordinates (x_train), Rank Proof & Statistical Summary:</b>"))
+        self.GenSummaryTextArea = QTextEdit(); self.GenSummaryTextArea.setReadOnly(True)
+        self.GenSummaryTextArea.setStyleSheet("font-family: Courier; font-size: 10pt; background-color: #f4f4f4;")
+        left_vbox.addWidget(self.GenSummaryTextArea, stretch=2)
+
+        left_vbox.addWidget(QLabel("<b>2. Per-Case Linear Independence & Error Table:</b>"))
+        self.GenTable = QTableWidget(0, 8)
+        self.GenTable.setHorizontalHeaderLabels([
+            "Case #", "x_test (mm)", "x / L", "Matrix Rank Status",
+            "Disp Err (%)", "Frobenius Err (%)", "Full NMAE (%)", "Excl. NMAE R>2h (%)"
+        ])
+        self.GenTable.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        left_vbox.addWidget(self.GenTable, stretch=3)
+        body_splitter.addWidget(left_widget)
+
+        right_widget = QWidget(); right_vbox = QVBoxLayout(right_widget)
+        right_vbox.addWidget(QLabel("<b>3. Generalization Error Profile & Statistical Distribution:</b>"))
+        self.fig_gen = Figure(figsize=(7, 6))
+        self.canvas_gen = FigureCanvas(self.fig_gen)
+        right_vbox.addWidget(self.canvas_gen)
+        body_splitter.addWidget(right_widget)
+
+        body_splitter.setSizes([650, 650])
+        main_layout.addWidget(body_splitter, stretch=1)
         return panel
 
 
@@ -1470,10 +1555,61 @@ class OfflinePreparationStudio(QMainWindow):
         mode = self.BeamTypeDropDown.currentText().lower() if hasattr(self, 'BeamTypeDropDown') else ''
         return 'elastic' in mode or 'foundation' in mode
 
+    def _compute_transverse_line_weights(self, node_ids):
+        """Computes consistent nodal force weights along the transverse line (y-direction)
+        based on element type:
+        - Hexa20 / Tet10 (quadratic): 1:4:1 Simpson quadrature rule (1, 4, 2, 4, ..., 4, 1)
+        - Hexa8 / Tet4 (linear): 1:1 trapezoidal rule (1, 2, 2, ..., 2, 1) on corner lines
+        """
+        num_n = len(node_ids)
+        if num_n == 0:
+            return np.array([])
+        if num_n == 1:
+            return np.ones(1)
+
+        Y = self.node_coords[node_ids, 1]
+        sort_idx = np.argsort(Y)
+        elem_type = getattr(self, 'element_type', 'Hexa8').lower()
+
+        w_sorted = np.ones(num_n, dtype=float)
+        if elem_type in ('hexa20', 'tet10'):
+            # Quadratic element column: corner line has 2*ny + 1 nodes (odd >= 3)
+            if num_n >= 3 and (num_n % 2 == 1):
+                w_sorted[0] = 1.0
+                w_sorted[-1] = 1.0
+                w_sorted[1:-1:2] = 4.0  # Mid-side nodes
+                w_sorted[2:-1:2] = 2.0  # Shared interior corner nodes (1 + 1 = 2)
+            else:
+                # Mid-side x-column in Hexa20 has ny + 1 nodes across y: trapezoidal 1:2:...:2:1
+                w_sorted[0] = 1.0
+                w_sorted[-1] = 1.0
+                if num_n > 2:
+                    w_sorted[1:-1] = 2.0
+        elif elem_type in ('hexa8', 'tet4'):
+            # Linear element edge quadrature: 1:1 per element -> (1, 2, 2, ..., 2, 1)
+            w_sorted[0] = 1.0
+            w_sorted[-1] = 1.0
+            if num_n > 2:
+                w_sorted[1:-1] = 2.0
+
+        weights = np.zeros(num_n, dtype=float)
+        weights[sort_idx] = w_sorted
+        return weights / np.sum(weights)
+
     def define_loads_at_pos(self, target_x, P_val):
         X = self.node_coords[:, 0]; Z = self.node_coords[:, 2] 
         tol = 1e-8; max_z = np.max(Z); max_x = np.max(X)
-        unique_x = np.unique(X); diffs = target_x - unique_x
+        elem_type = getattr(self, 'element_type', 'Hexa8').lower()
+
+        # For Hexa20/Tet10, use primary element corner x-planes (nx+1 planes) so every
+        # loaded line has full 2*ny+1 quadratic nodes with consistent 1:4:1 weighting
+        if elem_type in ('hexa20', 'tet10') and hasattr(self, 'mesh_params') and 'nx' in self.mesh_params:
+            nx = max(int(self.mesh_params['nx']), 1)
+            unique_x = np.linspace(np.min(X), max_x, nx + 1)
+        else:
+            unique_x = np.unique(X)
+
+        diffs = target_x - unique_x
         
         left_mask = np.where(diffs >= -tol)[0]
         left_idx = left_mask[-1] if len(left_mask) > 0 else 0
@@ -1486,7 +1622,9 @@ class OfflinePreparationStudio(QMainWindow):
             point_nodes = np.where((np.abs(X - x_val) < tol) & (np.abs(Z - max_z) < tol))[0]
             num_n = len(point_nodes)
             point_load_values = np.zeros((3, num_n))
-            if num_n > 0: point_load_values[2, :] = P_val / num_n 
+            if num_n > 0:
+                w_nodes = self._compute_transverse_line_weights(point_nodes)
+                point_load_values[2, :] = P_val * w_nodes
             loads['point_nodes'] = point_nodes; loads['point_load_values'] = point_load_values
         else:
             x_L = unique_x[left_idx]; x_R = unique_x[right_idx]
@@ -1496,13 +1634,14 @@ class OfflinePreparationStudio(QMainWindow):
             loads['point_nodes'] = np.concatenate((nodes_L, nodes_R))
             
             num_L = len(nodes_L); num_R = len(nodes_R)
-            val_L = (P_val * ratio_L) / num_L if num_L > 0 else 0
-            val_R = (P_val * ratio_R) / num_R if num_R > 0 else 0
-            
             load_vecs_L = np.zeros((3, num_L))
-            if num_L > 0: load_vecs_L[2, :] = val_L
+            if num_L > 0:
+                w_L = self._compute_transverse_line_weights(nodes_L)
+                load_vecs_L[2, :] = (P_val * ratio_L) * w_L
             load_vecs_R = np.zeros((3, num_R))
-            if num_R > 0: load_vecs_R[2, :] = val_R
+            if num_R > 0:
+                w_R = self._compute_transverse_line_weights(nodes_R)
+                load_vecs_R[2, :] = (P_val * ratio_R) * w_R
             loads['point_load_values'] = np.hstack((load_vecs_L, load_vecs_R))
         return loads
     
@@ -2207,10 +2346,13 @@ class OfflinePreparationStudio(QMainWindow):
 
             num_snapshots = int(self.num_snapshotsEditField.text())
             x_positions = self._build_snapshot_positions(num_snapshots)
+            self.x_train_positions = np.array(x_positions, dtype=float)
+            self.snapshot_method_used = self.SnapshotMethodDropDown.currentText() if hasattr(self, 'SnapshotMethodDropDown') else 'USS'
 
-            
             free_dofs = self.bc_info['free_dofs_indices']; num_free_dof = len(free_dofs)
             self.SnapshotMatrix = np.zeros((num_free_dof, num_snapshots))
+            self.F_train_matrix = np.zeros((num_free_dof, num_snapshots))
+            self.trained_x_columns = set()
             
             self.TrainningTimeTextArea.setText("*** Starting ROM Training ***\n"); print("Starting ROM Training...")
             K_reduced_csr = self.K_reduced.tocsr()
@@ -2233,6 +2375,10 @@ class OfflinePreparationStudio(QMainWindow):
                     dof_indices = node_id * 3 + np.array([0, 1, 2]); F_temp[dof_indices] += force_vec
                     
                 F_red_i = F_temp[free_dofs]
+                self.F_train_matrix[:, i] = F_red_i
+                if len(temp_loads['point_nodes']) > 0:
+                    for x_c in np.unique(np.round(self.node_coords[temp_loads['point_nodes'], 0], 9)):
+                        self.trained_x_columns.add(float(x_c))
                 start_time = time.perf_counter()
                 U_free_i = spla.spsolve(K_reduced_csr, F_red_i)
                 elapsedTime = time.perf_counter() - start_time
@@ -2247,6 +2393,12 @@ class OfflinePreparationStudio(QMainWindow):
             
             print("Performing Singular Value Decomposition (SVD)...")
             U_svd, S_disp, Vt = np.linalg.svd(self.SnapshotMatrix, full_matrices=False)
+            # Compute orthonormal basis Q_F and numerical rank of F_train_matrix for fast out-of-span verification
+            U_F, S_F, _ = np.linalg.svd(self.F_train_matrix, full_matrices=False)
+            tol_F = max(self.F_train_matrix.shape) * np.finfo(float).eps * (S_F[0] if len(S_F) > 0 else 1.0)
+            self.rank_F_train = int(np.sum(S_F > max(tol_F, 1e-10 * (S_F[0] if len(S_F) > 0 else 1.0))))
+            self.Q_F_train = U_F[:, :self.rank_F_train]
+            del self.F_train_matrix, U_F, S_F
             self.Phi_full = U_svd
             self.S_disp = S_disp
             energy_disp = S_disp**2 
@@ -2559,6 +2711,48 @@ class OfflinePreparationStudio(QMainWindow):
             fem_peak_comp = np.max(np.abs(Sigma_fem_nodal[:, col_i]))
             NMAE_stress_comp = (max_abs_err_comp / max(fem_peak_comp, 1e-12)) * 100.0
 
+            # Singular Zone Excluded NMAE (2 element layers around top-surface line load,
+            # while preserving support boundaries and normalizing by global FEM peak stress)
+            nx = max(int(self.mesh_params.get('nx', 50)), 1)
+            nz = max(int(self.mesh_params.get('nz', 5)), 1)
+            h_x = self.geometry['Lx'] / float(nx)
+            h_z = self.geometry['Lz'] / float(nz)
+            X_nodes = self.node_coords[:, 0]
+            Z_nodes = self.node_coords[:, 2]
+            z_load = np.max(Z_nodes)
+            x_min_dom, x_max_dom = np.min(X_nodes), np.max(X_nodes)
+
+            loaded_node_ids = temp_loads.get('point_nodes', np.array([], dtype=int))
+            if len(loaded_node_ids) > 0:
+                loaded_X = np.unique(X_nodes[loaded_node_ids])
+                min_dx = np.min(np.abs(X_nodes[:, None] - loaded_X[None, :]), axis=1)
+                dist_to_support = min(np.min(loaded_X - x_min_dom), np.min(x_max_dom - loaded_X))
+            else:
+                min_dx = np.abs(X_nodes - x_pos)
+                dist_to_support = min(abs(x_pos - x_min_dom), abs(x_max_dom - x_pos))
+
+            # Cap longitudinal exclusion radius so it never swallows the fixed support when load is near boundary
+            r_excl_x = min(2.0 * h_x, max(0.45 * dist_to_support, 0.5 * h_x)) if dist_to_support > 1e-9 else 0.5 * h_x
+            r_excl_z = min(2.0 * h_z, 0.6 * self.geometry['Lz'])
+            r_excl = r_excl_x
+
+            # Elliptical 2-element-layer mask around the top-surface line load (protects bottom fibers & supports)
+            norm_dist_sq = (min_dx / max(r_excl_x, 1e-12))**2 + ((Z_nodes - z_load) / max(r_excl_z, 1e-12))**2
+            non_singular_mask = norm_dist_sq > 1.0
+            if not np.any(non_singular_mask):
+                non_singular_mask = np.ones(len(X_nodes), dtype=bool)
+
+            max_abs_err_excl = np.max(abs_err_stress[non_singular_mask])
+            NMAE_stress_excl = (max_abs_err_excl / max(fem_peak_val, 1e-12)) * 100.0
+
+            max_abs_err_comp_excl = np.max(abs_err_comp[non_singular_mask])
+            NMAE_stress_comp_excl = (max_abs_err_comp_excl / max(fem_peak_comp, 1e-12)) * 100.0
+            rel_error_Sigma_excl = (
+                np.linalg.norm(Sigma_fem_nodal[non_singular_mask] - Sigma_rom_nodal[non_singular_mask])
+                / max(np.linalg.norm(Sigma_fem_nodal), 1e-12) * 100.0
+            )
+            num_excl_nodes = int(np.sum(~non_singular_mask))
+
             error_plot_data = abs_err_stress
 
             if hasattr(self, 'UIAxes10'):
@@ -2590,6 +2784,10 @@ class OfflinePreparationStudio(QMainWindow):
                 f"Relative Frobenius Error: {rel_error_Sigma:.4f} %\n"
                 f"NMAE Stress (Global Field): {NMAE_stress:.4f} %\n"
                 f"NMAE Stress ({stress_type_plot}): {NMAE_stress_comp:.4f} %\n\n"
+                f"--- SINGULAR ZONE EXCLUDED (R > 2h = {r_excl*1000.0:.2f} mm, {num_excl_nodes} nodes excl.) ---\n"
+                f"Singular Zone Excluded NMAE (Global): {NMAE_stress_excl:.4f} %\n"
+                f"Singular Zone Excluded NMAE ({stress_type_plot}): {NMAE_stress_comp_excl:.4f} %\n"
+                f"Singular Zone Excluded Frobenius Error: {rel_error_Sigma_excl:.4f} %\n\n"
 
                 f"--- PERFORMANCE  (min of {N_REPEATS} runs — same rank = same time) ---\n"
                 f"FEM Solve: {time_fem_solve:.6f} s\n"
@@ -2717,6 +2915,333 @@ class OfflinePreparationStudio(QMainWindow):
                 # Clear active RAM if it's the same bank
                 if hasattr(self, 'DT_Bank'): self.DT_Bank = []
                 QMessageBox.information(self, "Success", "ROM Bank has been deleted from disk.") 
+
+    # =========================================================================
+    # TAB 7: OUT-OF-SPAN GENERALIZATION & LINEAR INDEPENDENCE STUDY
+    # =========================================================================
+    def _generate_candidate_test_positions(self, num_test, mode_str, P_val):
+        """Generates N test load positions along the span.
+        If 'Strictly Out-of-Span' is selected, selects positions whose load vector f_test
+        satisfies rank([F_train, f_test]) = rank(F_train) + 1 (projection residual > 1e-6).
+        """
+        Lx = self.geometry['Lx']
+        free_dofs = self.bc_info['free_dofs_indices']
+        num_total_dof = self.bc_info['total_dofs']
+        Q_F = getattr(self, 'Q_F_train', None)
+        x_train = getattr(self, 'x_train_positions', np.array([]))
+
+        if "strictly out-of-span" not in mode_str.lower() or Q_F is None:
+            return np.linspace(0.015 * Lx, 0.985 * Lx, num_test)
+
+        # Build a dense pool of candidate positions across the interior of all mesh intervals
+        nx = max(int(self.mesh_params.get('nx', 50)), 1)
+        x_grid = np.linspace(0.0, Lx, nx + 1)
+        candidates = []
+        # Sample multiple fractional offsets inside each element interval so we have plenty of candidates
+        for frac in (0.37, 0.63, 0.23, 0.77, 0.51):
+            pts = x_grid[:-1] + frac * (x_grid[1:] - x_grid[:-1])
+            candidates.extend(pts.tolist())
+        candidates = np.array(sorted(np.unique(np.round(candidates, 9))))
+        # Filter out boundaries very close to 0 or Lx where load is entirely on fixed support
+        candidates = candidates[(candidates >= 0.005 * Lx) & (candidates <= 0.995 * Lx)]
+
+        valid_out_of_span = []
+        for x_cand in candidates:
+            if len(x_train) > 0 and np.min(np.abs(x_train - x_cand)) < 1e-6:
+                continue
+            t_loads = self.define_loads_at_pos(x_cand, P_val)
+            F_t = np.zeros(num_total_dof)
+            for j in range(len(t_loads['point_nodes'])):
+                n_id = t_loads['point_nodes'][j]
+                F_t[n_id * 3 : n_id * 3 + 3] += t_loads['point_load_values'][:, j]
+            f_red = F_t[free_dofs]
+            f_norm = np.linalg.norm(f_red)
+            if f_norm < 1e-12:
+                continue
+            proj = Q_F @ (Q_F.T @ f_red)
+            rel_res = np.linalg.norm(f_red - proj) / f_norm
+            if rel_res > 1e-5:
+                valid_out_of_span.append(x_cand)
+
+        valid_out_of_span = np.array(valid_out_of_span)
+        if len(valid_out_of_span) >= num_test:
+            idx = np.round(np.linspace(0, len(valid_out_of_span) - 1, num_test)).astype(int)
+            return np.sort(valid_out_of_span[idx])
+        elif len(valid_out_of_span) > 0:
+            # Pad with additional intermediate positions if mesh has fewer intervals than num_test
+            extra_needed = num_test - len(valid_out_of_span)
+            extra_pts = np.linspace(0.012 * Lx, 0.988 * Lx, extra_needed + len(valid_out_of_span) * 2)
+            for ep in extra_pts:
+                if len(valid_out_of_span) >= num_test:
+                    break
+                if np.min(np.abs(valid_out_of_span - ep)) > 1e-5:
+                    valid_out_of_span = np.append(valid_out_of_span, ep)
+            return np.sort(valid_out_of_span[:num_test])
+        else:
+            return np.linspace(0.015 * Lx, 0.985 * Lx, num_test)
+
+    def RunGeneralizationStudyButtonPushed(self):
+        """Executes N unseen test load cases, verifies linear independence rank([F_train, f_test]) = rank(F_train) + 1,
+        and computes Displacement Error, Stress Frobenius Error, Full-Domain NMAE, and Singular-Zone-Excluded NMAE."""
+        self.lock_ui()
+        progress = None
+        try:
+            if not all(hasattr(self, attr) and getattr(self, attr) is not None for attr in ['Phi', 'K_rom']):
+                QMessageBox.warning(self, "Missing ROM", "Please train the ROM in Step 5 first.")
+                return
+            if not hasattr(self, 'K_reduced') or self.K_reduced is None:
+                QMessageBox.warning(self, "Missing FEM System", "Please apply Loads & BC in Step 2 first.")
+                return
+
+            num_test = max(int(self.NumUnseenLoadsEditField.text()), 1)
+            P_val = float(self.GenLoadValueEditField.text())
+            stress_type_plot = self.GenStressTypeDropDown.currentText()
+            mode_str = self.GenSamplingModeDropDown.currentText()
+
+            stress_col_map = {'Sigma_xx': 0, 'Sigma_yy': 1, 'Sigma_zz': 2, 'Tau_xy': 3, 'Tau_yz': 4, 'Tau_zx': 5}
+            col_i = stress_col_map.get(stress_type_plot, 0)
+
+            Lx = self.geometry['Lx']
+            nx = max(int(self.mesh_params.get('nx', 50)), 1)
+            nz = max(int(self.mesh_params.get('nz', 5)), 1)
+            h_x = Lx / float(nx)
+            h_z = self.geometry['Lz'] / float(nz)
+            X_nodes = self.node_coords[:, 0]
+            Z_nodes = self.node_coords[:, 2]
+            z_load = np.max(Z_nodes)
+            x_min_dom, x_max_dom = np.min(X_nodes), np.max(X_nodes)
+
+            free_dofs = self.bc_info['free_dofs_indices']
+            num_total_dof = self.bc_info['total_dofs']
+            Q_F = getattr(self, 'Q_F_train', None)
+            rank_F = getattr(self, 'rank_F_train', self.Phi.shape[1])
+            x_train = getattr(self, 'x_train_positions', np.array([]))
+
+            x_test_array = self._generate_candidate_test_positions(num_test, mode_str, P_val)
+            num_test = len(x_test_array)
+
+            progress = QProgressDialog(f"Factorizing Stiffness Matrix & Evaluating {num_test} Unseen Load Cases...", "Cancel", 0, num_test, self)
+            progress.setWindowTitle("Out-of-Span Generalization Study")
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.show()
+            QApplication.processEvents()
+
+            # Pre-factorize K_reduced once for fast multi-load solve
+            K_reduced_csc = self.K_reduced.tocsc() if sp.issparse(self.K_reduced) else sp.csc_matrix(self.K_reduced)
+            solve_fem_fast = spla.factorized(K_reduced_csc)
+
+            self.gen_results_records = []
+            self.GenTable.setRowCount(num_test)
+
+            out_of_span_count = 0
+            for idx, x_pos in enumerate(x_test_array):
+                if progress.wasCanceled():
+                    break
+
+                temp_loads = self.define_loads_at_pos(x_pos, P_val)
+                F_temp = np.zeros(num_total_dof)
+                for j in range(len(temp_loads['point_nodes'])):
+                    node_id = temp_loads['point_nodes'][j]
+                    F_temp[node_id * 3 : node_id * 3 + 3] += temp_loads['point_load_values'][:, j]
+                F_red = F_temp[free_dofs]
+
+                # Linear independence / Span test: rank([F_train, f_test])
+                f_norm = np.linalg.norm(F_red)
+                if Q_F is not None and f_norm > 1e-12:
+                    proj = Q_F @ (Q_F.T @ F_red)
+                    span_residual = np.linalg.norm(F_red - proj) / f_norm
+                    is_out_of_span = span_residual > 1e-5
+                else:
+                    span_residual = 1.0
+                    is_out_of_span = True
+
+                if is_out_of_span:
+                    out_of_span_count += 1
+                    rank_status_str = f"rank = {rank_F + 1} (Out-of-Span)"
+                else:
+                    rank_status_str = f"rank = {rank_F} (In-Span)"
+
+                # FEM Reference Solve
+                U_free_fem = solve_fem_fast(F_red)
+                U_full_fem = np.zeros(num_total_dof)
+                U_full_fem[free_dofs] = U_free_fem
+                Sigma_fem_nodal, _ = self.PostProcess_Stress_3Dsparse(
+                    self.B_global, self.D_mat, U_full_fem, self.node_coords, self.element_connectivity, self.element_type
+                )
+
+                # ROM Projected Solve
+                F_rom = self.Phi.T @ F_red
+                alpha = np.linalg.solve(self.K_rom, F_rom)
+                U_free_rom = self.Phi @ alpha
+
+                if hasattr(self, 'Phi_nodal_stress') and self.Phi_nodal_stress is not None:
+                    Sigma_rom_nodal = (self.Phi_nodal_stress @ alpha).reshape((-1, 6))
+                else:
+                    U_full_rom = np.zeros(num_total_dof)
+                    U_full_rom[free_dofs] = U_free_rom
+                    Sigma_rom_nodal, _ = self.PostProcess_Stress_3Dsparse(
+                        self.B_global, self.D_mat, U_full_rom, self.node_coords, self.element_connectivity, self.element_type
+                    )
+
+                # Error Metrics
+                rel_err_U = (np.linalg.norm(U_free_fem - U_free_rom) / max(np.linalg.norm(U_free_fem), 1e-12)) * 100.0
+                rel_err_Sigma = (np.linalg.norm(Sigma_fem_nodal - Sigma_rom_nodal) / max(np.linalg.norm(Sigma_fem_nodal), 1e-12)) * 100.0
+
+                abs_err_comp = np.abs(Sigma_fem_nodal[:, col_i] - Sigma_rom_nodal[:, col_i])
+                fem_peak_comp = max(np.max(np.abs(Sigma_fem_nodal[:, col_i])), 1e-12)
+                nmae_full_comp = (np.max(abs_err_comp) / fem_peak_comp) * 100.0
+
+                # Singular Zone Excluded Mask (R > 2h)
+                loaded_node_ids = temp_loads.get('point_nodes', np.array([], dtype=int))
+                if len(loaded_node_ids) > 0:
+                    loaded_X = np.unique(X_nodes[loaded_node_ids])
+                    min_dx = np.min(np.abs(X_nodes[:, None] - loaded_X[None, :]), axis=1)
+                    dist_to_support = min(np.min(loaded_X - x_min_dom), np.min(x_max_dom - loaded_X))
+                else:
+                    min_dx = np.abs(X_nodes - x_pos)
+                    dist_to_support = min(abs(x_pos - x_min_dom), abs(x_max_dom - x_pos))
+
+                r_excl_x = min(2.0 * h_x, max(0.45 * dist_to_support, 0.5 * h_x)) if dist_to_support > 1e-9 else 0.5 * h_x
+                r_excl_z = min(2.0 * h_z, 0.6 * self.geometry['Lz'])
+                norm_dist_sq = (min_dx / max(r_excl_x, 1e-12))**2 + ((Z_nodes - z_load) / max(r_excl_z, 1e-12))**2
+                non_singular_mask = norm_dist_sq > 1.0
+                if not np.any(non_singular_mask):
+                    non_singular_mask = np.ones(len(X_nodes), dtype=bool)
+
+                nmae_excl_comp = (np.max(abs_err_comp[non_singular_mask]) / fem_peak_comp) * 100.0
+
+                rec = {
+                    'case': idx + 1,
+                    'x_mm': x_pos * 1000.0,
+                    'x_norm': x_pos / Lx,
+                    'rank_status': rank_status_str,
+                    'is_out_of_span': is_out_of_span,
+                    'span_residual': span_residual,
+                    'disp_err': rel_err_U,
+                    'frob_err': rel_err_Sigma,
+                    'nmae_full': nmae_full_comp,
+                    'nmae_excl': nmae_excl_comp
+                }
+                self.gen_results_records.append(rec)
+
+                row_vals = [
+                    str(rec['case']),
+                    f"{rec['x_mm']:.2f}",
+                    f"{rec['x_norm']:.4f}",
+                    rec['rank_status'],
+                    f"{rec['disp_err']:.4f}",
+                    f"{rec['frob_err']:.4f}",
+                    f"{rec['nmae_full']:.4f}",
+                    f"{rec['nmae_excl']:.4f}"
+                ]
+                for c_idx, val_str in enumerate(row_vals):
+                    item = QTableWidgetItem(val_str)
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.GenTable.setItem(idx, c_idx, item)
+
+                progress.setValue(idx + 1)
+                QApplication.processEvents()
+
+            if len(self.gen_results_records) == 0:
+                return
+
+            # Compute Statistical Summary
+            disp_arr = np.array([r['disp_err'] for r in self.gen_results_records])
+            frob_arr = np.array([r['frob_err'] for r in self.gen_results_records])
+            full_arr = np.array([r['nmae_full'] for r in self.gen_results_records])
+            excl_arr = np.array([r['nmae_excl'] for r in self.gen_results_records])
+            x_norm_arr = np.array([r['x_norm'] for r in self.gen_results_records])
+
+            x_train_mm_str = ", ".join([f"{x*1000.0:.2f}" for x in x_train]) if len(x_train) > 0 else "N/A"
+            x_train_norm_str = ", ".join([f"{x/Lx:.4f}" for x in x_train]) if len(x_train) > 0 else "N/A"
+            snap_method_name = getattr(self, 'snapshot_method_used', 'N/A')
+
+            summary_report = (
+                f"=== OFFLINE TRAINING LOAD POSITIONS ({len(x_train)} Snapshots, Method: {snap_method_name}) ===\n"
+                f"x_train (mm) : [{x_train_mm_str}]\n"
+                f"x_train / L  : [{x_train_norm_str}]\n"
+                f"Training Load Matrix Rank: rank(F_train) = {rank_F} | Retained POD Modes: r = {self.Phi.shape[1]}\n\n"
+                f"=== LINEAR INDEPENDENCE VERIFICATION ({len(self.gen_results_records)} Test Cases) ===\n"
+                f"Out-of-Span Cases [rank([F_train, f_test]) = {rank_F + 1}]: {out_of_span_count} / {len(self.gen_results_records)} ({100.0*out_of_span_count/len(self.gen_results_records):.1f}%)\n\n"
+                f"=== STATISTICAL SUMMARY ACROSS {len(self.gen_results_records)} UNSEEN TEST LOADS ({stress_type_plot}) ===\n"
+                f"Metric                         |   Mean ± Std Dev      |   Median   |    Max\n"
+                f"---------------------------------------------------------------------------------\n"
+                f"Displacement Error e_u (%)     | {np.mean(disp_arr):8.4f}% ± {np.std(disp_arr):7.4f}% | {np.median(disp_arr):8.4f}% | {np.max(disp_arr):8.4f}%\n"
+                f"Stress Frobenius Error e_σ (%) | {np.mean(frob_arr):8.4f}% ± {np.std(frob_arr):7.4f}% | {np.median(frob_arr):8.4f}% | {np.max(frob_arr):8.4f}%\n"
+                f"Full-Domain Stress NMAE (%)    | {np.mean(full_arr):8.4f}% ± {np.std(full_arr):7.4f}% | {np.median(full_arr):8.4f}% | {np.max(full_arr):8.4f}%\n"
+                f"Singular Excluded NMAE R>2h (%)| {np.mean(excl_arr):8.4f}% ± {np.std(excl_arr):7.4f}% | {np.median(excl_arr):8.4f}% | {np.max(excl_arr):8.4f}%\n"
+            )
+            self.GenSummaryTextArea.setText(summary_report)
+
+            # Plot 1 (Spatial Profile) & Plot 2 (Statistical Box/Bar Summary)
+            self.fig_gen.clf()
+            ax_top = self.fig_gen.add_subplot(211)
+            ax_bot = self.fig_gen.add_subplot(212)
+
+            ax_top.semilogy(x_norm_arr, np.maximum(full_arr, 1e-15), '-o', color='#e74c3c', markersize=4, linewidth=1.4, label=f'Full-Domain NMAE ({stress_type_plot})')
+            ax_top.semilogy(x_norm_arr, np.maximum(excl_arr, 1e-15), '-s', color='#27ae60', markersize=4, linewidth=1.4, label=f'Singular Excluded NMAE R>2h')
+            ax_top.semilogy(x_norm_arr, np.maximum(disp_arr, 1e-15), '--^', color='#2980b9', markersize=3.5, linewidth=1.2, label='Displacement Rel. Error')
+
+            if len(x_train) > 0:
+                for idx_t, xt in enumerate(x_train / Lx):
+                    lbl_t = 'Training Positions (x_train)' if idx_t == 0 else None
+                    ax_top.axvline(xt, color='gray', linestyle=':', alpha=0.6, linewidth=1.0, label=lbl_t)
+
+            ax_top.set_xlabel('Normalized Load Position (x / L)')
+            ax_top.set_ylabel('Error (%) [Log Scale]')
+            ax_top.set_title(f'Out-of-Span Predictive Generalization Across {len(self.gen_results_records)} Unseen Load Positions')
+            ax_top.grid(True, which='both', linestyle='--', alpha=0.4)
+            ax_top.legend(loc='best', fontsize=8)
+
+            # Bottom plot: Histogram of Singular-Zone-Excluded NMAE vs Full-Domain NMAE
+            bins = min(15, max(5, len(self.gen_results_records) // 3))
+            ax_bot.hist(full_arr, bins=bins, alpha=0.55, color='#e74c3c', edgecolor='black', label=f'Full NMAE (Mean: {np.mean(full_arr):.3f}%)')
+            ax_bot.hist(excl_arr, bins=bins, alpha=0.65, color='#27ae60', edgecolor='black', label=f'Excl. NMAE R>2h (Mean: {np.mean(excl_arr):.3f}%)')
+            ax_bot.set_xlabel(f'Stress NMAE ({stress_type_plot}) [%]')
+            ax_bot.set_ylabel('Number of Test Load Cases')
+            ax_bot.set_title('Statistical Error Distribution Across Unseen Out-of-Span Test Cases')
+            ax_bot.grid(True, linestyle='--', alpha=0.4)
+            ax_bot.legend(loc='best', fontsize=8)
+
+            self.fig_gen.tight_layout()
+            self.canvas_gen.draw_idle()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Generalization Study Error", f"Error during study:\n{str(e)}\n\n{traceback.format_exc()}")
+        finally:
+            if progress:
+                progress.close()
+            self.unlock_ui()
+            gc.collect()
+
+    def ExportGeneralizationCSVButtonPushed(self):
+        """Exports the Tab 7 training positions, linear independence proof, and 50-case table to CSV."""
+        if not hasattr(self, 'gen_results_records') or len(self.gen_results_records) == 0:
+            QMessageBox.warning(self, "No Results", "Please run the Out-of-Span Generalization Test first.")
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export Generalization Table to CSV", "OutOfSpan_Generalization_50Cases.csv", "CSV Files (*.csv)"
+        )
+        if not file_path:
+            return
+
+        try:
+            Lx = self.geometry['Lx']
+            x_train = getattr(self, 'x_train_positions', np.array([]))
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write("# Offline Training Positions (mm)," + ",".join([f"{x*1000.0:.4f}" for x in x_train]) + "\n")
+                f.write("# Offline Training Positions (x/L)," + ",".join([f"{x/Lx:.6f}" for x in x_train]) + "\n")
+                f.write("Case,x_test_mm,x_over_L,Matrix_Rank_Status,Span_Residual,Disp_Rel_Err_pct,Stress_Frobenius_Err_pct,Full_Domain_NMAE_pct,Singular_Excluded_NMAE_R_gt_2h_pct\n")
+                for r in self.gen_results_records:
+                    f.write(
+                        f"{r['case']},{r['x_mm']:.4f},{r['x_norm']:.6f},\"{r['rank_status']}\","
+                        f"{r['span_residual']:.6e},{r['disp_err']:.6f},{r['frob_err']:.6f},"
+                        f"{r['nmae_full']:.6f},{r['nmae_excl']:.6f}\n"
+                    )
+            QMessageBox.information(self, "Export Successful", f"Generalization table exported to:\n{file_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", f"Failed to write CSV:\n{str(e)}")
 
 
 
